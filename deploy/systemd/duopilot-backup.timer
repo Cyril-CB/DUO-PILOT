@@ -1,0 +1,11 @@
+[Unit]
+Description=DUO PILOT - sauvegarde quotidienne
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 Europe/Paris
+Persistent=true
+RandomizedDelaySec=5min
+Unit=duopilot-backup.service
+
+[Install]
+WantedBy=timers.target

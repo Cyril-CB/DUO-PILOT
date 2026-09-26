@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}Exécution #{{ job.id }} · DUO PILOT{% endblock %}
+{% block content %}
+{% set agents={'A':'OpenAI · Codex','B':'Anthropic · Claude'} %}
+<div class="page-heading"><div><a class="back-link" href="{{ url_for('kanban.detail',task_id=job.task_id) }}">← Carte #{{ job.task_id }}</a><p class="eyebrow">EXÉCUTION #{{ job.id }}</p><h1 class="task-title">{{ job.plan.title }}</h1><span class="badge {{ 'badge-demo' if job.mode=='demo' else 'badge-live' }}">{{ 'Simulation fictive' if job.mode=='demo' else 'Exécution réelle' }}</span> <span class="badge">{{ execution_statuses.get(job.status,job.status) }}</span></div><a class="button button-secondary" href="{{ url_for('execution.show',job_id=job.id) }}">Actualiser ↻</a></div>
+{% if job.error %}<div class="notice notice-error">{{ job.error }}</div>{% endif %}
+<div class="card task-form">
+  <div class="execution-metrics"><div><strong>{{ execution_phases.get(job.phase,job.phase) }}</strong><span>Étape actuelle</span></div><div><strong>{{ job.attempts }} / {{ job.settings_snapshot.EXECUTION_ATTEMPTS }}</strong><span>Tentatives du développeur</span></div><div><strong>{{ '%.1f'|format(job.elapsed_seconds/60) }} / {{ job.settings_snapshot.EXECUTION_MINUTES }} min</strong><span>Temps actif cumulé</span></div><div><strong>{{ job.calls }}</strong><span>Appels IA réservés</span></div></div>
+  <p class="fine-print">Développement : {{ agents[job.developer] }} · Contrôle : {{ agents[job.reviewer] }}.</p>
+  <p class="fine-print">{{ job.repo }} · Branche de départ : {{ job.base_branch }}<br>Branche de travail : <code>{{ job.branch }}</code></p>
+  {% if job.pr_url %}<p><a class="button button-primary" href="{{ job.pr_url }}" target="_blank" rel="noopener noreferrer">Ouvrir la pull request ↗</a></p>{% endif %}
+  <div class="execution-actions">
+    {% if job.status in ['queued','running'] %}<form method="post" action="{{ url_for('execution.action',job_id=job.id,action='pause') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button button-secondary">Mettre en pause</button></form>{% endif %}
+    {% if job.status in ['paused','blocked','pr_open'] %}<form method="post" action="{{ url_for('execution.action',job_id=job.id,action='resume') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button button-primary">{{ 'Retravailler la PR' if job.status=='pr_open' else 'Reprendre avec les réglages actuels' }}</button></form>{% endif %}
+    {% if job.pr_number %}{% for action,label in [('sync','Actualiser l’état GitHub'),('feedback','Récupérer les retours GitHub')] %}<form method="post" action="{{ url_for('execution.action',job_id=job.id,action=action) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button button-secondary">{{ label }}</button></form>{% endfor %}{% endif %}
+    {% if job.status in ['queued','paused','blocked'] and not job.pr_number %}<form method="post" action="{{ url_for('execution.action',job_id=job.id,action='cancel') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button button-secondary">Abandonner l’exécution</button></form>{% endif %}
+  </div>
+  {% if job.status=='running' %}<details class="context-card"><summary>Le worker a été arrêté brutalement ?</summary><p class="fine-print">Arrête d’abord le worker concerné. Après 30 secondes sans signe de vie, tu peux marquer l’interruption puis reprendre. Les appels déjà réservés restent comptés.</p><form method="post" action="{{ url_for('execution.action',job_id=job.id,action='mark-interrupted') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button button-secondary">Marquer l’interruption</button></form></details>{% endif %}
+  <p class="field-help">Une reprise conserve les compteurs et la branche. Pour répondre à des remarques GitHub, récupère les retours, attends leur arrivée dans le journal, puis relance le travail.</p>
+</div>
+<section class="section"><div class="section-heading"><h2>Le journal de travail</h2><a class="text-link" href="{{ url_for('execution.export',job_id=job.id) }}">Exporter le journal ↓</a></div>
+{% set kinds={'queued':'Mise en attente','prepared':'Préparation terminée','develop':'Développement','tests':'Tests','review_code':'Contrôle','reads':'Lectures demandées','commit':'Changements enregistrés','published':'PR publiée','stopped':'Arrêt','resumed':'Reprise','cancelled':'Abandon','merged':'Fusion constatée','closed':'PR fermée','github_feedback':'Retours GitHub','sync_error':'Erreur d’actualisation'} %}
+{% for item in job.events %}<article class="message"><div class="section-heading"><h3>{{ kinds.get(item.kind,item.kind) }}{% if item.actor %} · {{ agents[item.actor] }}{% endif %}</h3><span class="fine-print">{{ item.created_at|paris_time }} · {{ item.status }}</span></div>
+  {% if item.data is mapping %}
+  {% if item.data.payload %}<p class="message-content">{{ item.data.payload.message }}</p>{% if item.data.payload.findings %}<ul>{% for finding in item.data.payload.findings %}<li>{{ finding }}</li>{% endfor %}</ul>{% endif %}{% endif %}
+  {% if item.data.message %}<p>{{ item.data.message }}</p>{% endif %}
+  {% if item.kind=='tests' and item.data.passed is defined %}<p><strong>{{ 'Tests réussis' if item.data.passed else 'Tests en échec' }}</strong> · Code {{ item.data.exit_code }}</p><details class="context-card"><summary>Résultat des tests</summary><pre>{{ item.data.output }}</pre></details>{% endif %}
+  {% endif %}
+  <details class="context-card"><summary>Détails conservés</summary><pre>{{ item.data|tojson(indent=2) }}</pre></details>
+</article>{% endfor %}
+</section>
+{% endblock %}

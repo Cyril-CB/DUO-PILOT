@@ -1,0 +1,18 @@
+[Unit]
+Description=DUO PILOT - mise en file du tour quotidien
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=duopilot
+Group=duopilot
+WorkingDirectory=/opt/duopilot/app
+Environment=HOME=/home/duopilot
+Environment=CODEX_HOME=/home/duopilot/.codex
+Environment=CLAUDE_CONFIG_DIR=/home/duopilot/.claude
+Environment=PATH=/home/duopilot/.local/bin:/opt/duopilot/venv/bin:/usr/local/bin:/usr/bin:/bin
+Environment=LANG=C.UTF-8
+UMask=0077
+ExecStart=/opt/duopilot/venv/bin/python -m flask --app app daily --mode live --enqueue-only
+

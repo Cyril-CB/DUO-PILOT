@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Configuration · DUO PILOT{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">LES CONNEXIONS</p><h1>Préparer le duo.</h1><p class="page-intro">Les abonnements passent par les outils officiels installés sur la machine qui exécute les cycles.</p></div><span class="badge {{ 'badge-live' if live_ready else 'badge-demo' }}">{{ 'Configuration prête' if live_ready else 'Configuration à compléter' }}</span></div>
+{% if error %}<div class="notice notice-error" role="alert">{{ error }}</div>{% endif %}
+<form method="post" class="card task-form settings-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="version" value="{{ settings_version }}">
+  <h2>Modèles et limites</h2>
+  <div class="form-row two-columns">
+    <div class="form-field"><label for="codex-model">Modèle OpenAI · Codex</label><input id="codex-model" name="CODEX_MODEL" value="{{ settings.CODEX_MODEL }}" maxlength="128" placeholder="Modèle par défaut du CLI"><p class="field-help">Saisis un identifiant proposé par ton Codex. Vide : choix du CLI.</p></div>
+    <div class="form-field"><label for="claude-model">Modèle Anthropic · Claude</label><input id="claude-model" name="CLAUDE_MODEL" value="{{ settings.CLAUDE_MODEL }}" maxlength="128" list="claude-models" placeholder="Modèle par défaut du CLI"><datalist id="claude-models"><option value="sonnet"><option value="opus"><option value="haiku"></datalist><p class="field-help">Alias ou identifiant disponible avec ta connexion. Vide : choix du CLI.</p></div>
+  </div>
+  <div class="form-row">
+    {% for key,label,low,high in [('CLI_TIMEOUT','Durée par message de discussion (secondes)',10,600),('EXECUTION_MINUTES','Durée d’une mission (minutes)',1,240),('EXECUTION_ATTEMPTS','Tentatives de développement',1,30)] %}
+    <div class="form-field"><label for="{{ key }}">{{ label }}</label><input type="number" id="{{ key }}" name="{{ key }}" min="{{ low }}" max="{{ high }}" required value="{{ settings[key] }}"></div>
+    {% endfor %}
+  </div>
+  <p class="fine-print">La durée d’une mission compte le temps actif cumulé, reprises comprises. Chaque appel du développeur compte comme une tentative, y compris une demande de lecture. Les contrôles sont également bornés ; les plafonds ne sont pas des quotas de tokens.</p>
+  <label class="check-option"><input type="checkbox" name="EXECUTION_ENABLED"{% if settings.EXECUTION_ENABLED %} checked{% endif %}><span>Activer le développement, les tests et la publication de PR</span></label>
+  <label class="check-option"><input type="checkbox" name="EXECUTION_AUTO"{% if settings.EXECUTION_AUTO %} checked{% endif %}><span>Mettre automatiquement en file les nouvelles missions retenues</span></label>
+  <p class="fine-print">Désactiver le moteur arrête les travaux en cours à leur prochain contrôle. Aucune fusion ni activation d’une nouvelle version n’est effectuée.</p>
+  <details class="settings-advanced"><summary>Délais des appels et tests des deux dépôts</summary>
+    <div class="form-row two-columns">
+      {% for key,label in [('EXECUTION_CALL_SECONDS','Durée par appel de développement ou contrôle (secondes)'),('EXECUTION_TEST_SECONDS','Durée d’une commande de test (secondes)')] %}
+      <div class="form-field"><label for="{{ key }}">{{ label }}</label><input type="number" id="{{ key }}" name="{{ key }}" min="10" max="1800" required value="{{ settings[key] }}"></div>
+      {% endfor %}
+    </div>
+    {% for prefix,label in [('CSPILOT','CS-PILOT'),('SELF','DUO PILOT')] %}
+    <h3>{{ label }}</h3><div class="form-row two-columns">
+      <div class="form-field"><label for="{{ prefix }}_TEST_IMAGE">Image Docker de test</label><input id="{{ prefix }}_TEST_IMAGE" name="{{ prefix }}_TEST_IMAGE" value="{{ settings[prefix+'_TEST_IMAGE'] }}" maxlength="200" required></div>
+      <div class="form-field"><label for="{{ prefix }}_TEST_COMMAND">Commande de test · arguments JSON</label><textarea id="{{ prefix }}_TEST_COMMAND" name="{{ prefix }}_TEST_COMMAND" rows="2" required>{{ settings[prefix+'_TEST_COMMAND']|tojson }}</textarea></div>
+    </div>
+    {% endfor %}
+    <p class="fine-print">Les tests tournent dans Docker, sans accès réseau ni accès à tes connexions. Prépare l’image DUO PILOT avec <code>python -m flask --app app prepare-tests --topic self</code>. Pour CS-PILOT, utilise <code>--topic cspilot --requirements "CHEMIN/requirements-dev.txt"</code>. Le README décrit cette première installation et l’adaptation des images au projet.</p>
+  </details>
+  {% if execution_readiness %}<div class="notice"><strong>Pour l’exécution réelle :</strong><ul>{% for item in execution_readiness %}<li>{{ item }}</li>{% endfor %}</ul></div>{% endif %}
+  <button type="submit" class="button button-primary">Enregistrer les réglages</button>
+  <p class="field-help">Les nouveaux cycles utilisent ces modèles. Une mission déjà lancée conserve ses réglages jusqu’à une reprise manuelle. Aucun identifiant d’abonnement n’est enregistré ici.</p>
+</form>
+
+<div class="config-layout">
+  <section class="card config-card"><p class="eyebrow">VOS DEUX AGENTS</p><h2>Une connexion par outil.</h2><p>L'authentification se fait dans votre terminal, avec Codex et Claude Code. Aucun identifiant d'abonnement n'est saisi dans DUO PILOT.</p>
+    <div class="connection-row"><span class="agent-avatar avatar-a">A</span><div><h3>OpenAI · Codex</h3><p>Connexion ChatGPT dans le CLI officiel.</p><code>codex login</code><p class="connection-model">Modèle : {{ config_public.codex_model or 'Valeur par défaut du CLI' }}</p></div></div>
+    <div class="connection-row"><span class="agent-avatar avatar-b">B</span><div><h3>Anthropic · Claude</h3><p>Connexion à votre abonnement dans Claude Code.</p><code>claude</code><p class="connection-model">Modèle : {{ config_public.claude_model or 'Valeur par défaut du CLI' }}</p></div></div>
+    <div class="notice compact-notice">Les échanges réels utilisent les quotas et les conditions de vos abonnements. La démo fonctionne sans ces connexions.</div>
+  </section>
+  <aside class="card config-card readiness-card"><p class="eyebrow">AVANT DE LANCER</p><h2>{{ 'Tout est configuré.' if live_ready else 'État de préparation' }}</h2>
+    {% if readiness %}<ul class="readiness-list">{% for item in readiness %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}<p>Aucun point de configuration signalé.</p>{% endif %}
+    <p>Vérifiez les outils et leurs connexions depuis le terminal :</p><div class="code-block"><code>flask --app app doctor</code></div><p class="fine-print">Le diagnostic complète l'état affiché ici. Un abonnement connecté doit être disponible pour chaque CLI sur la machine du worker.</p>
+  </aside>
+</div>
+
+<section class="section"><div class="section-heading"><div><p class="eyebrow">LE TERRAIN D'EXPÉRIENCE</p><h2>Les dépôts de travail</h2></div></div><div class="mission-grid"><article class="card config-card"><h3>CS-PILOT</h3><p class="config-value">{{ config_public.cspilot_repo or 'Non configuré' }}</p><p class="fine-print">Application à faire évoluer : besoins, bugs et améliorations.</p></article><article class="card config-card"><h3>DUO PILOT</h3><p class="config-value">{{ config_public.self_repo or 'Non configuré' }}</p><p class="fine-print">Application du duo : mémoire, consignes et fonctionnement.</p></article></div></section>
+
+<div class="notice">Le worker traite les discussions et les missions. Une PR exige des tests réussis et l’accord du contrôleur sur le même commit. La fusion et le déploiement restent entre tes mains.</div>
+{% endblock %}

@@ -1,0 +1,10 @@
+<div class="form-field"><label for="title">Titre</label><input id="title" name="title" maxlength="200" required value="{{ values.title }}" placeholder="Ex. Expliquer pourquoi une fiche ne peut pas être validée"></div>
+<div class="form-row">
+  <div class="form-field"><label for="topic">Application</label>
+  {% if task is defined %}<input id="topic" value="{{ task_topics[task.topic] }}" disabled><input type="hidden" name="topic" value="{{ task.topic }}">
+  {% else %}<select id="topic" name="topic">{% for key, label in task_topics.items() %}<option value="{{ key }}"{% if values.topic == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>{% endif %}</div>
+  <div class="form-field"><label for="kind">Type</label><select id="kind" name="kind">{% for key, label in task_kinds.items() %}<option value="{{ key }}"{% if values.kind == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+  <div class="form-field"><label for="priority">Priorité</label><select id="priority" name="priority">{% for key, label in task_priorities.items() %}<option value="{{ key }}"{% if values.priority|string == key|string %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+</div>
+<div class="form-field"><label for="description">Description du besoin</label><textarea id="description" name="description" rows="8" maxlength="4000" aria-describedby="description-help">{{ values.description }}</textarea><p id="description-help" class="field-help">Quel résultat attends-tu ? Pour un bug : la page concernée, les étapes, le résultat observé et le résultat attendu.</p></div>
+{% if task is defined %}<div class="form-field"><label for="status">Avancement</label><select id="status" name="status">{% for key, label in task_statuses.items() %}<option value="{{ key }}"{% if values.status == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select><p class="field-help">Le statut décrit le travail réellement effectué. Archiver conserve la carte et son historique.</p></div>{% endif %}

@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block title %}Exécutions · DUO PILOT{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">DU PLAN À LA PR</p><h1>Les exécutions</h1><p class="page-intro">Développement, tests, contrôle et publication. Les fusions restent manuelles.</p></div><a class="button button-secondary" href="{{ url_for('web.configuration') }}">Régler les limites</a></div>
+<div class="table-wrap card"><table><thead><tr><th>Mission</th><th>État</th><th>Étape</th><th>Appels</th><th>Temps actif</th></tr></thead><tbody>
+{% for job in jobs %}<tr><td><a class="table-primary" href="{{ url_for('execution.show',job_id=job.id) }}">{{ job.title }}</a><span class="table-sub">#{{ job.id }} · {{ 'Démo' if job.mode=='demo' else job.repo }}</span></td><td>{{ execution_statuses.get(job.status,job.status) }}</td><td>{{ execution_phases.get(job.phase,job.phase) }}</td><td>{{ job.calls }}</td><td>{{ '%.1f'|format(job.elapsed_seconds/60) }} min</td></tr>{% else %}<tr><td colspan="5">Aucune mission lancée. Ouvre une carte avec un plan retenu dans le Kanban.</td></tr>{% endfor %}
+</tbody></table></div><p class="fine-print">Les 100 exécutions les plus récentes sont affichées ici. Toutes restent accessibles depuis leur carte.</p>
+{% endblock %}

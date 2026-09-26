@@ -1,0 +1,23 @@
+[Unit]
+Description=DUO PILOT - interface locale
+After=network.target
+
+[Service]
+Type=simple
+User=duopilot
+Group=duopilot
+WorkingDirectory=/opt/duopilot/app
+Environment=HOME=/home/duopilot
+Environment=CODEX_HOME=/home/duopilot/.codex
+Environment=CLAUDE_CONFIG_DIR=/home/duopilot/.claude
+Environment=PATH=/home/duopilot/.local/bin:/opt/duopilot/venv/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PYTHONUNBUFFERED=1
+Environment=LANG=C.UTF-8
+UMask=0077
+ExecStart=/opt/duopilot/venv/bin/gunicorn --workers 1 --threads 4 --bind 127.0.0.1:5055 --timeout 120 app:app
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

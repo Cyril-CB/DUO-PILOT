@@ -1,0 +1,27 @@
+[Unit]
+Description=DUO PILOT - discussions et executions
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+
+[Service]
+Type=simple
+User=duopilot
+Group=duopilot
+SupplementaryGroups=docker
+WorkingDirectory=/opt/duopilot/app
+Environment=HOME=/home/duopilot
+Environment=CODEX_HOME=/home/duopilot/.codex
+Environment=CLAUDE_CONFIG_DIR=/home/duopilot/.claude
+Environment=PATH=/home/duopilot/.local/bin:/opt/duopilot/venv/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PYTHONUNBUFFERED=1
+Environment=LANG=C.UTF-8
+UMask=0077
+# Docker must see the same /tmp bind paths as this process: no PrivateTmp.
+ExecStart=/opt/duopilot/venv/bin/python -m flask --app app worker
+Restart=on-failure
+RestartSec=5
+KillMode=control-group
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

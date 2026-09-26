@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Nouvelle carte · DUO PILOT{% endblock %}
+{% block content %}
+<div class="page-heading"><div><a class="back-link" href="{{ url_for('kanban.board', mode=mode) }}">← Le Kanban</a><p class="eyebrow">UN BESOIN À PARTAGER</p><h1>Nouvelle carte</h1><p class="page-intro">Décris une tâche, un bug ou une amélioration. Les agents pourront en discuter pendant leur tour.</p></div></div>
+{% if mode == 'demo' %}<div class="notice notice-demo">Cette carte appartient à la démonstration.</div>{% endif %}
+{% if error %}<div class="notice notice-error" role="alert">{{ error }}</div>{% endif %}
+<form class="card task-form new-task-form" method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% include '_task_fields.html' %}
+  <div class="form-actions"><button class="button button-primary" type="submit">Ajouter à « À étudier »</button><a href="{{ url_for('kanban.board', mode=mode) }}">Annuler</a></div>
+</form>
+{% endblock %}

@@ -1,64 +1,39 @@
-# DUO PILOT 0.1.1
+# DUO PILOT 0.4.1
 
-Le départ d'une expérience : **OpenAI et Claude disposent chacun de trois messages pour choisir une action sur CS-PILOT, puis de trois messages pour améliorer DUO PILOT.**
+**Installation sur le VPS Ubuntu : commence par [deploy/README-VPS.md](deploy/README-VPS.md).** Le kit contient l’installateur, les services, la connexion des CLI sous un compte dédié et les sauvegardes. Les instructions Windows ci-dessous restent applicables.
 
-Application personnelle en Python 3.11+, Flask et SQLite. Cette version 0.1.1 met en place la discussion, l'accord sur un plan précis, la répartition des rôles et le journal quotidien. **Elle ne développe pas encore de code et ne crée ni branche, ni commit, ni pull request. Elle ne fusionne rien.**
+Deux agents, OpenAI via Codex CLI et Anthropic via Claude Code, choisissent ensemble des missions pour **CS-PILOT** et pour **DUO PILOT**. Application personnelle locale en Python 3.11+, Flask et SQLite.
 
-## Mise à jour depuis la version 0.1
+Cette version relie les discussions au travail : **lecture du dépôt → plan accepté → patch → tests → contrôle par l’autre agent → pull request**. L’agent qui ouvre un sujet développe ; l’autre contrôle. La fusion et l’installation d’une nouvelle version restent manuelles.
 
-1. Termine ou arrête le cycle en cours, puis ferme le serveur et le worker.
-2. Fais une copie de sauvegarde de ton dossier actuel `duo_pilot`, avec son fichier `.env` et son dossier `instance/`.
-3. Recopie le contenu du dossier `duo_pilot` de cette archive dans ton dossier actuel, en remplaçant les fichiers de code. **Conserve ton `.env` et ton dossier `instance/` : ils contiennent les connexions configurées et l'historique.** L'archive ne contient ni `.env` ni `instance/`.
-4. Relance `python app.py` depuis le même environnement Python. Aucune dépendance supplémentaire n'est nécessaire. La base est mise à jour automatiquement, sans effacer les échanges.
+Les nouveautés :
 
-Les cycles terminés conservent leur premier intervenant réel, même si les deux sujets avaient été ouverts par la même IA en 0.1. Ils ne sont pas rejoués. La nouvelle alternance s'applique aux nouvelles discussions. Les attributions affichées indiquent qui développera et qui contrôlera lorsqu'une phase d'exécution sera ajoutée.
+- Limites de durée et de tentatives réglables depuis **Configuration**.
+- **Un tour supplémentaire** à la demande, sur un projet ou les deux, avec un historique distinct.
+- Découpage d’une carte en **deux à six sous-tâches**, éventuellement dépendantes.
+- Choix du modèle de chaque agent dans l’application.
+- Exécutions suivies, mises en pause et reprises, avec journal, tests, revue et lien vers la PR.
 
-## Répartition des rôles et historique
+Le moteur réel est **désactivé au départ**. Les discussions et le Kanban restent utilisables immédiatement. Les connexions officielles déjà fonctionnelles sont conservées.
 
-L'IA qui ouvre la discussion sera chargée de développer la tâche retenue ; l'autre contrôlera le résultat. Les deux sujets d'une journée sont ouverts par des IA différentes, et les rôles s'inversent le lendemain. Exemple de rotation :
+## Mettre à jour la version existante
 
-| Jour | Sujet | Ouvre et développera | Contrôlera |
-| --- | --- | --- | --- |
-| 1 | CS-PILOT | OpenAI · Codex | Anthropic · Claude |
-| 1 | DUO PILOT | Anthropic · Claude | OpenAI · Codex |
-| 2 | CS-PILOT | Anthropic · Claude | OpenAI · Codex |
-| 2 | DUO PILOT | OpenAI · Codex | Anthropic · Claude |
+1. Arrête le serveur et le worker. Sauvegarde le dossier actuel `duo_pilot` complet.
+2. Recopie le contenu du dossier `duo_pilot` de cette archive dans ton dossier actuel, en remplaçant le code. **Conserve ton `.env` et tout ton dossier `instance/`.** L’archive ne contient aucun de ces fichiers personnels.
+3. Dans ton environnement Python habituel :
 
-La date détermine laquelle ouvre CS-PILOT en premier. Chacune a donc au maximum une tâche de développement et une revue prévues par jour, si les deux discussions aboutissent à des tâches. Un refus, un échec ou « aucune action » ne crée pas de travail artificiel.
-
-Tous les messages, contextes, décisions et résultats des votes restent dans le journal SQLite. La répartition des rôles est enregistrée par discussion, affichée sur la page du cycle et incluse dans son export JSON. Les liens « Cycles plus anciens » et « Cycles plus récents » donnent accès à l'intégralité de l'historique, par pages de 30 cycles.
-
-La mémoire envoyée aux IA reste limitée aux trois dernières décisions du sujet et du mode concernés. Conserver toutes les conversations ne signifie pas les renvoyer intégralement aux modèles à chaque lancement.
-
-## Ce qui fonctionne
-
-- Tableau de bord local : cycles, échanges, décisions et état des connexions.
-- Deux discussions par cycle : CS-PILOT et DUO PILOT ; six interventions chacune, soit douze au maximum.
-- Premier intervenant différent selon le sujet, et alternance quotidienne des rôles.
-- Proposition finale structurée au cinquième tour ; acceptation de son identifiant exact au sixième. Un refus ou une décision de ne rien faire est possible.
-- Mémoire courte des trois dernières décisions de chaque sujet et du même mode.
-- Journal SQLite conservé intégralement, navigation dans tous les cycles et export JSON des échanges et rôles.
-- Démonstration avec réponses et situations explicitement fictives, sans appel IA ou GitHub.
-- Connecteurs pour les outils officiels Codex et Claude Code, exécutés sur la machine où leurs connexions ont été préparées.
-- Lecture limitée du contexte GitHub en mode réel.
-
-Le mode réel est fourni pour connexion et essai sur ta machine. **Il n'a pas été validé ici avec tes abonnements ou tes dépôts.**
-
-## Démarrage : la démo
-
-Dans le dossier extrait du projet, sous Linux, macOS ou un environnement WSL compatible avec les outils officiels :
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
+```powershell
 python -m pip install -r requirements.txt
-cp .env.example .env
 python app.py
 ```
 
-Ouvre ensuite [http://127.0.0.1:5055](http://127.0.0.1:5055), puis lance une journée de démonstration. Aucune clé ni connexion n'est nécessaire pour cette étape.
+La migration SQLite s’effectue au démarrage. Elle conserve les conversations, votes, cartes, retours, identifiants et rôles historiques des versions 0.1 à 0.3. Aucun ancien cycle n’est rejoué. Conserve la sauvegarde : revenir à une ancienne version exige de restaurer aussi sa base, serveur et worker arrêtés.
 
-Sur Windows, Flask peut également être lancé avec PowerShell :
+Pour que les agents travaillent sur le code de cette version, reporte-le également dans le dépôt configuré par `SELF_REPO` et sa branche `SELF_BASE_BRANCH`. Le code exécuté dans une mission vient de GitHub ; il ne vient pas de ton dossier d’installation.
+
+## Démarrage neuf ou démo
+
+Dans le dossier extrait, avec PowerShell :
 
 ```powershell
 py -3 -m venv .venv
@@ -68,114 +43,224 @@ Copy-Item .env.example .env
 python app.py
 ```
 
-Pour le mode réel, suis les instructions d'installation propres à Codex et Claude Code sur ton système. Les deux commandes doivent être accessibles à Python, sous le même utilisateur que celui qui s'y est connecté. Une installation dans WSL et une installation Windows ne partagent pas automatiquement leurs connexions.
+Ne recopie pas `.env.example` sur ton `.env` lors d’une mise à jour.
 
-## Brancher les deux abonnements
+Ouvre [http://127.0.0.1:5055](http://127.0.0.1:5055). Lance la démo, ouvre une carte de démonstration, puis **Simuler l’exécution**. Dans un second terminal, même dossier et environnement Python :
 
-DUO PILOT utilise les connexions des outils officiels. Il ne collecte aucun mot de passe, cookie ou jeton OAuth de ChatGPT ou Claude. Aucun champ de clé API IA n'est prévu dans `.env`.
+```powershell
+python -m flask --app app worker
+```
 
-1. Installe **Codex CLI** en suivant sa documentation officielle, puis exécute `codex login` et choisis la connexion ChatGPT proposée par l'outil.
-2. Installe **Claude Code** en suivant sa documentation officielle, puis démarre `claude` et suis sa connexion interactive avec ton compte Claude abonné.
-3. Vérifie dans chaque outil que la connexion correspond bien à l'abonnement souhaité. La présence d'un exécutable ne prouve pas l'authentification ou la disponibilité d'un quota.
-4. Renseigne `.env` :
+La démo n’appelle aucun modèle, GitHub ou Docker. Les réponses, travaux et résultats sont fictifs ; elle sert à découvrir le parcours. Les cartes démo et réelles sont séparées.
+
+Sous Linux, remplace l’activation par `source .venv/bin/activate`, et utilise `python3` pour créer l’environnement si nécessaire.
+
+## Tes agents et leurs modèles
+
+L’application utilise les connexions des **CLI officiels**, préparées par toi sur la machine du worker. Elle ne demande pas de clé API IA. Garde les chemins et l’authentification qui fonctionnent déjà.
+
+Exemple de configuration Windows, à adapter :
 
 ```dotenv
 USE_SUBSCRIPTION_CLI=true
+CODEX_BIN=codex
+CLAUDE_BIN=C:/Users/Cyril/.local/bin/claude.exe
+CODEX_HOME=C:/Users/Cyril/.duopilot-codex
 CSPILOT_REPO=ton-compte/ton-depot-cspilot
 CSPILOT_BASE_BRANCH=dev
 SELF_REPO=ton-compte/ton-depot-duo-pilot
 SELF_BASE_BRANCH=main
+GITHUB_TOKEN=
+GITHUB_WRITE_TOKEN=
 ```
 
-Les noms ci-dessus sont des exemples à remplacer. Le dépôt DUO PILOT doit exister et posséder la branche choisie avant une discussion réelle. Ce starter ne crée pas de dépôt GitHub. `main` est la branche de lecture par défaut pour DUO PILOT ; choisis `dev` lorsque tu auras préparé cette branche.
+Les dépôts et les branches doivent exister. `CODEX_HOME` peut rester celui dédié que tu as déjà connecté avec ChatGPT. Le connecteur refuse les configurations Codex personnelles comportant des MCP, hooks, plugins ou fournisseurs incompatibles avec ce fonctionnement. Il ne modifie pas tes connexions.
 
-Laisse `CODEX_MODEL` et `CLAUDE_MODEL` vides pour utiliser le choix par défaut de chaque outil. Tu peux ensuite renseigner un identifiant de modèle compatible avec ta version de l'outil et ton abonnement. `CODEX_BIN` et `CLAUDE_BIN` permettent d'indiquer leurs chemins si nécessaire.
+Dans **Configuration** :
 
-Le connecteur refuse une configuration Codex comportant des outils globaux, hooks, plugins, profils ou fournisseurs personnalisés. Dans ce cas, utilise un compte système dédié avec les CLI officiels et leurs connexions par abonnement. Le programme ne modifie pas ta configuration existante. Linux ou WSL est conseillé pour le mode réel : en cas de délai dépassé, l'arrêt porte sur tout le groupe de processus ; sous Windows natif, seul le processus lancé est arrêté.
+- **Modèle OpenAI · Codex** : identifiant disponible dans ton CLI et ton abonnement.
+- **Modèle Anthropic · Claude** : identifiant ou alias disponible, par exemple `sonnet` ou `opus`.
+- **Champ vide** : choix par défaut du CLI correspondant.
 
-Pour des dépôts privés, renseigne `GITHUB_TOKEN` avec un jeton GitHub à portée limitée aux deux dépôts et avec les seules permissions de lecture nécessaires : **Contents**, **Issues** et **Pull requests**. Ce jeton GitHub est distinct des connexions IA. Ne le publie pas ; `.env` et `instance/` sont exclus de Git.
+Les réglages enregistrés dans l’application prennent priorité sur `CODEX_MODEL`, `CLAUDE_MODEL` et `CLI_TIMEOUT` de `.env`. Ils sont figés à la mise en file d’un cycle ou d’une mission. Une reprise manuelle adopte les réglages actuels et conserve les compteurs. Le programme ne dresse pas un catalogue de modèles et ne vérifie pas leur disponibilité en appelant les IA ; un modèle refusé par le CLI produit une erreur dans le journal.
 
-Vérifie la configuration :
+Vérifications locales :
 
-```bash
-flask --app app doctor
+```powershell
+codex --version
+& "$env:USERPROFILE\.local\bin\claude.exe" --version
+python -m flask --app app doctor
 ```
 
-Cette commande vérifie la configuration locale, sans appel IA et sans lire les identifiants des outils. Elle ne vérifie pas les droits GitHub, l'authentification IA ou les quotas.
+`doctor` vérifie la configuration, pas les droits, les quotas ni les connexions réelles. Pour une nouvelle installation, authentifie séparément `codex login` et Claude Code. Windows et WSL ne partagent pas automatiquement leurs connexions.
 
-## Lancer une vraie discussion
+## Activer le développement et les PR
 
-Deux méthodes sont disponibles. Pour un premier essai, la commande directe est la plus simple :
+Il faut **Git**, **Docker avec un moteur Linux démarré**, une image de tests par projet et un jeton GitHub adapté. Docker sert à exécuter le code de test dans un conteneur ; les modèles proposent des patches et n’obtiennent pas un terminal libre.
 
-```bash
-flask --app app daily --mode live
+### 1. GitHub
+
+`GITHUB_TOKEN` reste le jeton de lecture du contexte : Contents, Issues et Pull requests en lecture pour les dépôts privés.
+
+Ajoute dans `.env` un `GITHUB_WRITE_TOKEN` limité aux dépôts concernés, avec **Contents : lecture/écriture** et **Pull requests : lecture/écriture**. Il sert au coordinateur pour pousser une branche et créer ou mettre à jour la description de sa PR. Il n’est transmis ni aux modèles ni aux conteneurs de tests. Redémarre les deux processus après une modification de `.env`.
+
+Le code de DUO PILOT ne comporte aucune opération de fusion, de déploiement ou de modification des protections GitHub. Toutefois, les permissions d’un jeton d’écriture peuvent permettre davantage que ce que le programme utilise. La limitation du jeton ne suffit donc pas à garantir une interdiction de fusion au niveau de GitHub : garde les règles et protections des branches sous ton contrôle et n’accorde pas de contournement au compte technique.
+
+### 2. Images de tests
+
+Vérifie les outils :
+
+```powershell
+git --version
+docker version
 ```
 
-Pour utiliser le bouton de l'interface, démarre le serveur avec `python app.py` et, dans un second terminal avec le même environnement virtuel actif, lance :
+Prépare l’image de DUO PILOT :
 
-```bash
-flask --app app worker
+```powershell
+python -m flask --app app prepare-tests --topic self
 ```
 
-Le bouton du mode réel place le cycle dans la file d'attente. Le worker traite les appels en dehors du serveur web. Avec `worker --once`, il traite au maximum un cycle en attente puis quitte. Recharge la page du cycle pour consulter la progression.
+Pour CS-PILOT, indique un fichier de dépendances provenant d’une copie de ton projet et que tu as examiné :
 
-Un cycle est unique **par date Europe/Paris et par mode**. La démo et le réel peuvent donc être lancés le même jour ; répéter une commande ou un clic ne déclenche pas un second cycle du même mode. Un échec n'est pas relancé automatiquement : les interventions déjà tentées peuvent avoir consommé du quota.
-
-Un cycle réel resté en attente depuis une date précédente n'est pas traité. Si minuit passe pendant un cycle réel, aucun nouveau tour n'est lancé pour cette ancienne journée.
-
-Si le processus a été interrompu et qu'un cycle reste indiqué en cours, arrête d'abord le worker concerné, puis clôture le cycle avec son numéro :
-
-```bash
-flask --app app mark-interrupted 1
+```powershell
+python -m flask --app app prepare-tests --topic cspilot --requirements "C:/chemin/CS-PILOT/requirements-dev.txt"
 ```
 
-Cette opération marque l'interruption sans rejouer la discussion. Elle n'autorise pas un nouveau cycle du même mode à la même date.
+Utilise `requirements.txt` si le projet n’a pas de `requirements-dev.txt`. Le préparateur accepte les dépendances PyPI et les inclusions `-r`/`-c` de fichiers `.txt` dans le même dossier ou ses sous-dossiers. Il construit une image Python 3.12 avec Git, pytest et ces dépendances. **Cette construction utilise le réseau et installe des dépendances.** Elle est lancée explicitement par toi, jamais par une réponse d’agent. Elle peut prendre plusieurs minutes.
 
-## Ce que les IA voient
+`--write-only` prépare le dossier et le Dockerfile sans construire l’image. Les fichiers se trouvent dans `instance/test-images/`. Aucun `.env`, code applicatif ou dossier de données local n’est envoyé dans le contexte de construction.
 
-Pour chaque dépôt, le connecteur récupère au maximum vingt entrées issues ouvertes, puis exclut les PR présentes dans cette liste, quatre PR ouvertes et cinq commits de la branche configurée. Les textes sont abrégés et certaines entrées peuvent être omises pour respecter la taille du contexte.
+Si CS-PILOT exige une autre version de Python, des bibliothèques système, des dépendances privées, un navigateur ou une base de test particulière, adapte le Dockerfile produit puis construis l’image avec `docker build --tag cspilot-tests:local "CHEMIN_DU_DOSSIER"`. L’image doit contenir la commande `python`, les dépendances et les outils nécessaires. Les tests ne peuvent joindre aucun serveur externe. Utilise des données et services de test locaux au conteneur.
 
-**Aucun fichier source, diff, commentaire, résultat CI ou review n'est lu à ce stade.** Une anomalie citée dans une issue reste donc une piste à examiner, et les décisions sont des propositions à valider. À partir de trois PR ouvertes observées, le contexte demande de choisir une revue ou de ne rien faire ; cette version n'exécute de toute façon aucun développement.
+Dans **Configuration → Délais des appels et tests**, règle l’image et la commande de chaque dépôt. Exemples de commandes, saisies comme tableaux JSON d’arguments :
 
-Les discussions partagent uniquement ce contexte borné, les interventions du sujet en cours et une mémoire de trois décisions. Les modes démo et réel ont des mémoires distinctes.
+```json
+["python", "-m", "pytest", "-q"]
+```
 
-## Limites de consommation et accès
+```json
+["python", "-m", "unittest", "discover", "-s", "tests"]
+```
 
-Les douze messages correspondent au maximum à douze lancements de CLI. Ils limitent les interventions visibles, **pas les requêtes internes des CLI, les tokens, le raisonnement des modèles ou leur consommation d'abonnement**. Les appels peuvent rencontrer un quota, un modèle indisponible ou une déconnexion. Aucun coût en euros n'est calculé à partir d'un abonnement ; les compteurs de tokens ne sont renseignés que lorsqu'ils sont fournis par le connecteur.
+La commande doit réellement vérifier le projet. Un retour zéro est considéré comme réussi ; le contrôleur examine aussi les résultats et les critères. Ce prototype ne prouve pas à lui seul la pertinence ou l’exhaustivité des tests.
 
-`CLI_TIMEOUT` limite l'attente d'une intervention ; sa valeur doit être comprise entre 10 et 600 secondes, avec 180 secondes par défaut. Une erreur, une réponse structurée invalide ou un délai dépassé arrête le sujet concerné. L'autre sujet peut encore être traité. Il n'y a pas de nouvelle tentative automatique.
+### 3. Mise en route
 
-Cette V0.1.1 est destinée à **un usage personnel local**. Le serveur écoute sur `127.0.0.1` et refuse les adresses clientes non locales. Il n'y a pas de compte utilisateur. Ne l'expose pas sur Internet ou derrière un reverse proxy sans ajouter une authentification adaptée : un proxy local pourrait rendre les requêtes distantes apparemment locales.
+Dans **Configuration**, active **Activer le développement, les tests et la publication de PR**. Choisis si le worker doit **mettre automatiquement en file les nouvelles missions retenues**. Ce choix concerne toutes les cartes réelles déjà dans « Plan retenu » et encore sans exécution active ; inspecte cette colonne avant de l’activer.
+
+Avec la mise en file automatique décochée, ouvre une carte acceptée puis clique sur **Lancer / ouvrir l’exécution**. Le worker doit fonctionner dans son second terminal. Commence par une petite mission dont tu peux facilement apprécier le résultat.
+
+Le worker :
+
+1. Vérifie les développements non intégrés et prépare une copie isolée depuis la branche configurée (`dev` pour CS-PILOT par défaut).
+2. Crée sa branche `duo/task-…`, lit la documentation et fournit des extraits au développeur.
+3. Applique le patch proposé et crée un commit local.
+4. Exécute les tests dans Docker, sur une copie des fichiers suivis par Git. Le conteneur n’a pas de réseau, de connexion GitHub/IA ou de montage de tes données locales.
+5. Transmet le diff complet et les tests à l’autre agent. Un test échoué ou un refus demande une correction, dans les limites fixées.
+6. Pousse le commit et ouvre la PR uniquement si **le même commit** a passé les tests et reçu l’accord du contrôleur.
+
+Le maximum est de trois développements non intégrés par dépôt : les PR ouvertes observées et les travaux DUO PILOT déjà préparés sont comptés. Les PR sont laissées à ton examen. Le programme vérifie à nouveau la capacité avant publication ; une action simultanée faite directement sur GitHub peut cependant changer cet état entre deux vérifications.
+
+## Un tour supplémentaire quand un bug arrive
+
+Sur l’accueil, utilise **Un tour supplémentaire** et choisis **CS-PILOT**, **DUO PILOT** ou **les deux**. Il s’agit d’une nouvelle discussion, pas d’un rejeu du matin : la sélection de cartes et le contexte du dépôt sont actualisés au démarrage du sujet.
+
+- Un projet : six messages, trois par agent.
+- Les deux : douze messages, trois par agent et par projet.
+- Le premier intervenant s’inverse entre cycles supplémentaires successifs.
+- Chaque cycle a son numéro, ses décisions et son historique.
+- Un double envoi du même formulaire ne crée pas deux cycles. Recharge l’accueil pour lancer volontairement un autre tour.
+
+Le cycle quotidien reste unique par date Europe/Paris et par mode. Un échec ou une ancienne journée n’est pas rejoué automatiquement. Les tours supplémentaires sont explicites et consomment du quota comme les autres cycles.
+
+Le worker traite les éléments en attente ; il ne crée pas de rendez-vous quotidien de lui-même. Ton planificateur peut continuer à lancer :
+
+```powershell
+python -m flask --app app daily --mode live
+```
+
+`daily` traite la discussion ; le worker réalise ensuite les missions si le moteur est actif. `worker --once` traite au maximum un élément en attente puis quitte. `execute NUMERO_CARTE` permet de mettre en file et traiter directement une mission acceptée ; en mode réel, cette commande utilise les vraies connexions.
+
+## Kanban et sous-tâches
+
+Tu peux ajouter un bug, une amélioration ou une tâche pour chaque projet, fixer sa priorité, ajouter des retours et consulter toute son histoire. Les agents reçoivent au plus huit cartes ouvertes dans un contexte de 4 000 caractères. Les travaux en cours et les retours passent avant les nouveaux chantiers.
+
+Un plan accepté se rattache à la carte lue ou crée une nouvelle mission. Le titre, la description et la priorité que tu as saisis sont conservés. Si tu modifies la carte pendant la discussion ou le travail, le programme conserve ta modification et signale le conflit.
+
+Les agents peuvent voter un découpage en deux à six sous-tâches, chacune avec un périmètre et des critères. Une sous-tâche peut dépendre d’une étape précédente. Le parent devient une carte de regroupement ; seules les feuilles sont exécutables. Le découpage peut aller jusqu’à trois niveaux au total.
+
+Les sous-tâches héritent du projet, du mode, de la priorité et des rôles du plan accepté. **Chaque sous-tâche a sa propre enveloppe de durée et de tentatives.** Une dépendance attend que sa carte soit terminée et qu’elle n’ait plus d’exécution ou de PR ouverte. Lorsqu’une PR est fusionnée par toi, le worker constate la fusion et peut terminer la carte, puis le parent lorsque tous ses enfants sont terminés. Une carte modifiée depuis le dernier travail garde son état pour que tu l’examines.
+
+Le worker vérifie environ toutes les cinq minutes les PR ouvertes qu’il suit, entre deux travaux. Un travail long peut retarder cette vérification. **Actualiser l’état GitHub** déclenche aussi une vérification en file, sans appel IA. Fermer une PR sans fusion ne marque pas la carte terminée.
+
+Les cartes restent locales ; elles ne sont pas automatiquement créées comme issues GitHub. Les archives, exports JSON et l’import explicite d’un ancien plan depuis sa conversation sont conservés.
+
+## Durées, tentatives et reprises
+
+| Réglage | Défaut | Plage |
+| --- | --- | --- |
+| Attente par message de discussion | 180 s | 10–600 s |
+| Temps actif cumulé d’une mission | 30 min | 1–240 min |
+| Appels du développeur par mission | 6 | 1–30 |
+| Attente par appel de développement/contrôle | 600 s | 10–1 800 s |
+| Durée par commande de test | 180 s | 10–1 800 s |
+
+Une **tentative** est un appel du développeur, y compris une demande d’extrait de code ou un appel qui échoue. Le contrôleur peut demander deux compléments de lecture par version. Le total des appels de développement et de contrôle est borné à quatre fois le nombre de tentatives configuré. Les appels sont réservés et comptés avant le lancement du CLI.
+
+Le temps actif couvre la préparation, les appels, Git et les tests ; les pauses et l’attente d’une revue humaine ne comptent pas. Il est enregistré régulièrement. Après un arrêt brutal, le dernier intervalle non enregistré peut manquer ; ces limites ne sont pas un compteur financier exact. Les opérations de nettoyage peuvent également se terminer après le délai.
+
+Dans **Exécutions**, consulte les messages, patches, résultats, compteurs et erreurs. **Mettre en pause** demande l’arrêt au prochain contrôle et interrompt les commandes actives. **Reprendre avec les réglages actuels** conserve le dossier, la branche, les tentatives et le temps consommé. Si le budget est épuisé, augmente-le explicitement dans Configuration avant de reprendre.
+
+Une erreur de CLI ou de réseau bloque la mission : aucun rappel gratuit ou essai infini. Une reprise après publication partielle vérifie si la PR existe déjà. Une interruption pendant l’application d’un patch est récupérée seulement si l’état Git correspond au résultat attendu ; des changements inattendus sont conservés et bloquent la reprise.
+
+Pour reprendre une PR à partir de tes remarques, clique sur **Récupérer les retours GitHub**, attends leur apparition dans le journal, puis **Retravailler la PR**. La collecte est bornée aux six derniers éléments des trente premiers éléments retournés par chacune des API commentaires, revues et commentaires de code. Elle n’est pas un historique complet des grandes discussions. Les résultats CI de GitHub ne sont pas collectés : les vérifications affichées sont celles du conteneur local.
+
+Après un arrêt brutal du worker, arrête bien l’ancien processus et ses commandes, puis utilise **Marquer l’interruption** après 30 secondes sans signe de vie. Sous Windows, l’arrêt normal appelle `taskkill /T` pour arrêter l’arbre de processus ; ce comportement reste à vérifier sur ta machine.
+
+Pour une discussion interrompue, la commande existante reste disponible :
+
+```powershell
+python -m flask --app app mark-interrupted NUMERO_CYCLE
+```
+
+Elle clôt la discussion sans rejouer ses messages. Tu peux ensuite lancer un nouveau tour explicite.
+
+## Mémoire, sources et limites
+
+Toutes les conversations et traces restent dans SQLite. Le contexte des modèles reste borné : trois dernières décisions, cartes sélectionnées et extraits utiles. La conservation de l’historique ne signifie pas que tout est renvoyé à chaque appel.
+
+Avant une discussion réelle, jusqu’à deux extraits de documentation sont lus. Les quatre premiers messages peuvent demander du code, au plus huit demandes par sujet, 60 lignes / 1 800 caractères par extrait. Le contexte dépôt + Kanban reste limité à 12 000 caractères par défaut. Les sources du sujet sont fixées à un même commit.
+
+Pour l’exécution, les lectures sont faites dans la branche isolée actuelle : au plus 180 lignes / 10 000 caractères par extrait, avec un contexte d’extraits borné à 30 000 caractères. Un patch est limité à vingt fichiers et 80 000 caractères ; le diff complet soumis à la revue doit tenir dans 80 000 caractères. Les fichiers binaires, renommages, liens, workflows GitHub, environnements et données locales sont exclus. Une grosse mission doit être découpée.
+
+Les commandes de lecture suivantes ne consomment aucun appel IA :
+
+```powershell
+python -m flask --app app inspect-repo --topic cspilot
+python -m flask --app app inspect-repo --topic self
+```
+
+Les messages et délais limitent les lancements et le temps d’attente, **pas les tokens ni la consommation interne des CLI**. Les quotas restent ceux de tes abonnements. Aucun coût en euros n’est déduit d’un abonnement.
+
+L’auto-amélioration produit une PR sur DUO PILOT. Le programme courant continue à utiliser la version installée. Tu examines, fusionnes et installes la nouvelle version toi-même.
 
 ## Données et vérification
 
-La base et son journal se trouvent dans `instance/duopilot.sqlite3`. Elle contient les contextes GitHub et échanges, qui peuvent être confidentiels. Le bouton d'export fournit le journal JSON d'un cycle. Pour copier la base, arrête les processus qui l'utilisent et conserve le dossier `instance/` complet.
+`instance/` contient la base, les copies de travail et les dossiers d’images. Il reste hors Git avec `.env`. Arrête les processus avant une sauvegarde et conserve le dossier entier. Aucun nettoyage automatique des conversations ou branches n’est effectué.
 
-Les tests locaux s'exécutent ainsi :
+Usage personnel sur `127.0.0.1:5055`, avec formulaires protégés par CSRF. Il n’y a pas de gestion de comptes ; cette application n’est pas prévue pour être exposée sur Internet.
 
-```bash
+```powershell
 python -m pip install -r requirements-dev.txt
-python -m pytest
+python -m pytest -q
 ```
 
-Les tests utilisent des doublures locales et ne démontrent pas la compatibilité de tes connexions avec les versions des CLI installées.
+Les tests emploient Git local réel et des doubles pour les IA, Docker et GitHub. Ils ne constituent pas une validation des nouvelles fonctions avec tes abonnements, tes dépôts, Docker Desktop ou Windows. Voir [docs/VERIFICATION.md](docs/VERIFICATION.md) et [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-## Suite du projet
+## Références officielles
 
-La prochaine étape sera un exécuteur séparé : lecture des sources, branche de travail isolée depuis `dev`, développement, tests, revue par l'autre IA et PR vers `dev`. Chaque dépôt devra avoir ses protections et permissions interdisant la fusion aux agents. Les limites, les droits et l'activation d'une nouvelle version du coordinateur resteront sous contrôle humain.
-
-Pour l'auto-amélioration, la version active restera celle validée par Cyril. Les IA proposeront leurs changements dans le dépôt DUO PILOT ; elles ne pourront pas remplacer à chaud leur propre processus.
-
-Voir [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) pour l'organisation du code et les invariants du prototype.
-
-## Documentation officielle
-
-Références consultées lors de la préparation de cette version :
-
-- [Installation de Codex CLI](https://developers.openai.com/codex/cli) et [authentification](https://developers.openai.com/codex/auth).
-- [Exécution non interactive de Codex](https://developers.openai.com/codex/non-interactive-mode).
-- [Installation et connexion de Claude Code](https://code.claude.com/docs/en/quickstart).
-- [Exécution non interactive de Claude Code](https://code.claude.com/docs/en/headless) et [conditions d'utilisation et conformité](https://code.claude.com/docs/en/legal-and-compliance).
-- [API GitHub : issues](https://docs.github.com/en/rest/issues/issues).
-
-L'accès dépend de l'abonnement, des quotas et de la version installée. Les connexions restent celles des binaires officiels ; cette application ne reproduit pas les API privées de ChatGPT ou de Claude.
+- [Codex : exécution non interactive](https://developers.openai.com/codex/noninteractive), [commandes CLI](https://developers.openai.com/codex/cli/reference) et [authentification](https://developers.openai.com/codex/auth).
+- [Claude Code : CLI](https://code.claude.com/docs/en/cli-reference) et [exécution non interactive](https://code.claude.com/docs/en/headless).
+- [GitHub : API des pull requests](https://docs.github.com/en/rest/pulls/pulls).
+- [Docker : options de lancement des conteneurs](https://docs.docker.com/reference/cli/docker/container/run/).

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Carte #{{ task.id }} · DUO PILOT{% endblock %}
+{% block content %}
+<div class="page-heading"><div><a class="back-link" href="{{ url_for('kanban.board', mode=task.mode, topic=task.topic) }}">← Le Kanban</a><p class="eyebrow">{{ task_topics[task.topic] }} · CARTE #{{ task.id }}</p><h1 class="task-title">{{ task.title }}</h1><div class="task-tags"><span class="badge">{{ task_statuses[task.status] }}</span><span class="priority priority-{{ task.priority }}">Priorité {{ task_priorities[task.priority]|lower }}</span><span class="fine-print">Créée par {{ 'toi' if task.origin == 'human' else 'les agents' }}</span></div></div></div>
+{% if task.mode == 'demo' %}<div class="notice notice-demo">Carte de démonstration · séparée des vraies tâches.</div>{% endif %}
+{% if error %}<div class="notice notice-error" role="alert">{{ error }} <a href="{{ url_for('kanban.detail', task_id=task.id) }}">Recharger la carte</a></div>{% endif %}
+{% if task.parent %}<p class="fine-print">Sous-tâche de <a href="{{ url_for('kanban.detail',task_id=task.parent.id) }}">#{{ task.parent.id }} · {{ task.parent.title }}</a>{% if task.depends_on %} · Attend la fin de <a href="{{ url_for('kanban.detail',task_id=task.depends_on) }}">#{{ task.depends_on }}</a>{% endif %}</p>{% endif %}
+{% if task.children %}<section class="card task-form"><h2>Les sous-tâches</h2><ol class="subtasks">{% for child in task.children %}<li><a href="{{ url_for('kanban.detail',task_id=child.id) }}">{{ child.title }}</a> <span class="badge">{{ task_statuses[child.status] }}</span>{% if child.depends_on %}<span class="fine-print"> · Après #{{ child.depends_on }}</span>{% endif %}</li>{% endfor %}</ol></section>{% endif %}
+{% if task.latest_plan and not task.children %}
+<section class="card task-form execution-panel"><h2>Développement et contrôle</h2>
+  {% if task.status not in ['done','archived','backlog'] %}<form method="post" action="{{ url_for('execution.enqueue',task_id=task.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button button-primary">{{ 'Simuler l’exécution' if task.mode=='demo' else 'Lancer / ouvrir l’exécution' }}</button></form>{% endif %}
+  {% for run in task.executions %}<p><a href="{{ url_for('execution.show',job_id=run.id) }}">Exécution #{{ run.id }} · {{ execution_statuses.get(run.status,run.status) }}</a>{% if run.pr_url %} · <a href="{{ run.pr_url }}" rel="noopener noreferrer" target="_blank">Voir la PR ↗</a>{% endif %}</p>{% endfor %}
+  <p class="fine-print">Le worker réalise les étapes dans une copie du dépôt. Une PR est publiée après tests et contrôle, sans fusion.</p>
+</section>
+{% endif %}
+<div class="task-layout">
+  <div>
+    <form class="card task-form" method="post">
+      <h2>Le besoin</h2><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="version" value="{{ values.version }}">
+      {% include '_task_fields.html' %}
+      <button class="button button-primary" type="submit">Enregistrer les changements</button>
+    </form>
+    <form class="card task-form comment-form" method="post" action="{{ url_for('kanban.comment', task_id=task.id) }}">
+      <h2>Ajouter un retour</h2><p class="fine-print">Une précision, un résultat de test ou une correction à transmettre aux agents.</p>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="version" value="{{ task.version }}">
+      <div class="form-field"><label class="sr-only" for="comment">Ton retour</label><textarea id="comment" name="comment" rows="4" maxlength="2000" required>{{ comment_draft or '' }}</textarea></div>
+      <button class="button button-secondary" type="submit">Ajouter le retour</button>
+    </form>
+  </div>
+  <aside>
+    <section class="card decision-card"><p class="eyebrow">LE PLAN DES AGENTS</p>
+      {% if task.latest_plan %}
+      <h2>{{ task.latest_plan.title }}</h2><p>{{ task.latest_plan.rationale }}</p>
+      <p><strong>{{ agent_names[task.developer] }}</strong> développera.<br><strong>{{ agent_names[task.reviewer] }}</strong> contrôlera.</p>
+      <h3>Périmètre</h3><ul>{% for item in task.latest_plan.scope %}<li>{{ item }}</li>{% endfor %}</ul>
+      <h3>Critères de réussite</h3><ul class="check-list">{% for item in task.latest_plan.acceptance_criteria %}<li>{{ item }}</li>{% endfor %}</ul>
+      <p class="decision-footer">Ce plan a été accepté par les deux agents. L’exécution et ses vérifications sont suivies séparément.</p>
+      {% else %}<h2>À examiner ensemble</h2><p>Leur plan apparaîtra ici s’ils choisissent cette carte et trouvent un accord. La description initiale sera conservée.</p>{% endif %}
+      {% for decision in task.decisions %}<p><a href="{{ url_for('web.cycle', cycle_id=decision.cycle_id) }}#session-{{ decision.session_id }}">Conversation du {{ decision.run_date }} · cycle #{{ decision.cycle_id }} →</a></p>{% endfor %}
+    </section>
+    <section class="card task-history"><h2>L’historique</h2>
+      {% set event_labels = {'created': 'Carte créée', 'edited': 'Carte modifiée', 'comment': 'Retour ajouté', 'planned': 'Plan retenu', 'execution':'Suivi du travail'} %}
+      {% set field_labels = {'title': 'Titre', 'description': 'Description', 'topic': 'Projet', 'kind': 'Type', 'priority': 'Priorité', 'status': 'Avancement'} %}
+      {% for event in task.events %}
+      <article class="task-event"><p class="event-title">{{ event_labels.get(event.event, event.event) }} · {{ 'Toi' if event.actor == 'human' else 'Les agents' }}</p><time datetime="{{ event.created_at }}">{{ event.created_at|paris_time }}</time>
+        {% if event.event == 'comment' %}<p class="event-text">{{ event.data.text }}</p>
+        {% elif event.event == 'edited' %}<details><summary>Voir les changements</summary>{% for field, change in event.data.items() %}{% set labels = task_statuses if field == 'status' else task_priorities if field == 'priority' else task_kinds if field == 'kind' else {} %}<p><strong>{{ field_labels.get(field, field) }}</strong><br>{{ labels.get(change.before, change.before) }} → {{ labels.get(change.after, change.after) }}</p>{% else %}<p>Aucun champ modifié.</p>{% endfor %}</details>
+        {% elif event.event == 'planned' %}<p>{{ event.data.plan.title }}</p><details><summary>Voir ce plan</summary><p>{{ event.data.plan.rationale }}</p><ul>{% for criterion in event.data.plan.acceptance_criteria %}<li>{{ criterion }}</li>{% endfor %}</ul></details>
+        {% elif event.event == 'created' %}<details><summary>Voir la demande initiale</summary><p>{{ event.data.title }}</p><p class="event-text">{{ event.data.description }}</p></details>{% endif %}
+        {% if event.event == 'execution' %}<p>{{ event.data.message or task_statuses.get(event.data.status,event.data.status) }}</p>{% if event.data.execution_id %}<a href="{{ url_for('execution.show',job_id=event.data.execution_id) }}">Voir l’exécution #{{ event.data.execution_id }}</a>{% endif %}{% endif %}
+      </article>
+      {% endfor %}
+    </section>
+  </aside>
+</div>
+{% endblock %}

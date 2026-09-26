@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Laboratoire · DUO PILOT{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <p class="eyebrow"><span class="tiny-dot"></span> LE LABORATOIRE</p>
+    <h1>Deux IA.<br>Un cap commun.</h1>
+    <p class="hero-description">OpenAI et Claude confrontent leurs idées pour faire avancer CS-PILOT et améliorer leur propre fonctionnement.</p>
+  </div>
+  <div class="agent-pair" aria-label="Les deux agents">
+    <div class="agent-card"><span class="agent-avatar avatar-a">A</span><div><strong>OpenAI</strong><span>Codex</span></div><span class="agent-tag">AGENT A</span></div>
+    <div class="pair-link" aria-hidden="true"><span></span><i>↕</i><span></span></div>
+    <div class="agent-card"><span class="agent-avatar avatar-b">B</span><div><strong>Anthropic</strong><span>Claude</span></div><span class="agent-tag">AGENT B</span></div>
+  </div>
+</section>
+
+<div class="rules-strip">
+  <div><strong>2</strong><span>agents complémentaires</span></div>
+  <div><strong>12</strong><span>messages par cycle</span></div>
+  <div><strong>2</strong><span>décisions au maximum</span></div>
+  <div><strong>0</strong><span>fusion automatique</span></div>
+</div>
+
+<section class="section">
+  <div class="section-heading"><div><p class="eyebrow">LES DEUX MISSIONS</p><h2>Une discussion, un choix précis.</h2></div><span class="section-note">3 messages par agent et par sujet</span></div>
+  <div class="mission-grid">
+    <article class="card mission-card"><span class="mission-index">01 / APPLICATION</span><h3>Faire avancer CS-PILOT</h3><p>Choisir un correctif, une amélioration ou un module utile, puis définir un périmètre et des critères de réussite.</p><div class="repo-label"><span aria-hidden="true">↗</span> {{ config_public.cspilot_repo or 'Dépôt CS-PILOT à configurer' }}</div></article>
+    <article class="card mission-card"><span class="mission-index">02 / AUTO-AMÉLIORATION</span><h3>Améliorer DUO PILOT</h3><p>Examiner leur mémoire, leurs consignes et leurs outils pour proposer une évolution mesurable de ce laboratoire.</p><div class="repo-label"><span aria-hidden="true">↗</span> {{ config_public.self_repo or 'Dépôt DUO PILOT à configurer' }}</div></article>
+  </div>
+</section>
+
+<section class="launch-panel" aria-labelledby="launch-title">
+  <div><p class="eyebrow">PASSER À L'ESSAI</p><h2 id="launch-title">Lancer un cycle</h2><p>Un accord commun, un refus ou aucune action : chaque conclusion a sa place.</p><p class="fine-print">Les agents examinent le Kanban, lisent la documentation et choisissent une mission. Si le moteur est activé, le développeur et le contrôleur peuvent ensuite préparer une PR.</p><a class="text-link" href="{{ url_for('kanban.board') }}">Voir les tâches et signaler un bug →</a></div>
+  <div class="launch-actions">
+    <form method="post" action="{{ url_for('web.create_cycle') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="mode" value="demo">
+      <button type="submit" class="button button-primary">Essayer la démo <span aria-hidden="true">→</span></button>
+      <p class="button-help">Échanges fictifs, sans connexion ni consommation IA.</p>
+    </form>
+    <form method="post" action="{{ url_for('web.create_cycle') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="mode" value="live">
+      <button type="submit" class="button button-secondary"{% if not live_ready %} disabled{% endif %}>Planifier un cycle réel <span aria-hidden="true">↗</span></button>
+      <p class="button-help">{% if live_ready %}Ajout à la file du worker. Utilise vos connexions CLI.{% else %}<a href="{{ url_for('web.configuration') }}">Configurer les connexions</a> pour activer les échanges réels.{% endif %}</p>
+    </form>
+  </div>
+</section>
+
+<section class="section card task-form">
+  <h2>Un nouveau besoin aujourd’hui ?</h2><p class="fine-print">Ajoute la demande au Kanban, puis lance un cycle supplémentaire. Le sujet choisi conserve trois messages par agent. Chaque nouveau lancement consomme du quota en mode réel.</p>
+  <form method="post" action="{{ url_for('web.create_cycle') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="manual_key" value="{{ manual_key }}">
+    <div class="form-row two-columns"><div class="form-field"><label for="extra-topic">Sujet à relancer</label><select id="extra-topic" name="topic"><option value="cspilot">CS-PILOT · 6 messages</option><option value="self">DUO PILOT · 6 messages</option><option value="both">Les deux · 12 messages</option></select></div><div class="form-field"><label for="extra-mode">Mode</label><select name="mode" id="extra-mode"><option value="live"{% if not live_ready %} disabled{% endif %}>Agents réels</option><option value="demo"{% if not live_ready %} selected{% endif %}>Démonstration</option></select></div></div>
+    <button class="button button-secondary" type="submit">Lancer un cycle supplémentaire</button>
+  </form>
+</section>
+
+<section class="section">
+  <div class="section-heading"><div><p class="eyebrow">JOURNAL D'EXPÉRIENCE</p><h2>Les cycles</h2></div><div class="inline-stats"><span><strong>{{ stats.cycles }}</strong> cycles</span><span><strong>{{ stats.messages }}</strong> messages</span><span><strong>{{ stats.agreed }}</strong> accords</span></div></div>
+  {% if cycles %}
+  {% set status_labels = {'queued': 'En attente', 'running': 'En cours', 'completed': 'Terminé', 'failed': 'Échec'} %}
+  <div class="table-wrap card"><table><thead><tr><th>Cycle</th><th>Mode</th><th>État</th><th>Messages</th><th>Accords</th><th><span class="sr-only">Ouvrir</span></th></tr></thead><tbody>
+    {% for cycle in cycles %}<tr><td><a class="table-primary" href="{{ url_for('web.cycle', cycle_id=cycle.id) }}">{{ cycle.run_date }}</a><span class="table-sub">Cycle #{{ cycle.id }}{% if cycle.sequence %} · Supplémentaire {{ cycle.sequence }}{% endif %}</span></td><td><span class="badge {{ 'badge-demo' if cycle.mode == 'demo' else 'badge-live' }}">{{ 'Démo' if cycle.mode == 'demo' else 'Réel' }}</span></td><td><span class="status status-{{ cycle.status }}"><span></span>{{ status_labels.get(cycle.status, cycle.status) }}</span></td><td>{{ cycle.message_count }} <span class="muted">/ {{ cycle.subject_count*6 }}</span></td><td>{{ cycle.agreed_count }} <span class="muted">/ {{ cycle.subject_count }}</span></td><td><a class="row-link" href="{{ url_for('web.cycle', cycle_id=cycle.id) }}" aria-label="Voir le cycle {{ cycle.id }}">Voir <span aria-hidden="true">→</span></a></td></tr>{% endfor %}
+  </tbody></table></div>
+  <nav class="section-heading" aria-label="Pages de l’historique">
+    <span class="section-note">Page {{ page }} sur {{ total_pages }} · Toutes les conversations sont conservées.</span>
+    <div class="heading-actions">
+      {% if page > 1 %}<a class="text-link" href="{{ url_for('web.index', page=page-1) }}">← Cycles plus récents</a>{% endif %}
+      {% if page < total_pages %}<a class="text-link" href="{{ url_for('web.index', page=page+1) }}">Cycles plus anciens →</a>{% endif %}
+    </div>
+  </nav>
+  {% else %}
+  <div class="empty-state card"><span class="empty-symbol" aria-hidden="true">↗</span><h3>Le premier échange reste à écrire.</h3><p>Lancez la démo pour découvrir le déroulement d'un cycle et ses décisions.</p></div>
+  {% endif %}
+</section>
+{% endblock %}

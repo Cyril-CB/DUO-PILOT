@@ -1,0 +1,11 @@
+[Unit]
+Description=DUO PILOT - sauvegarde SQLite et configuration
+
+[Service]
+Type=oneshot
+User=duopilot
+Group=duopilot
+UMask=0077
+ExecStart=/opt/duopilot/venv/bin/python /opt/duopilot/app/deploy/backup.py
+TimeoutStartSec=180
+

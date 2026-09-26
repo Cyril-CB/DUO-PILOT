@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Cycle {{ cycle.id }} · DUO PILOT{% endblock %}
+{% block content %}
+{% set statuses = {'queued': 'En attente', 'running': 'En cours', 'completed': 'Terminé', 'failed': 'Échec', 'agreed': 'Accord', 'rejected': 'Pas d’accord', 'no_action': 'Aucune action', 'pending': 'À venir'} %}
+<div class="page-heading"><div><a class="back-link" href="{{ url_for('web.index') }}">← Tous les cycles</a><p class="eyebrow">JOURNAL D'EXPÉRIENCE · {{ cycle.run_date }}</p><h1>Cycle #{{ cycle.id }}</h1><div class="heading-badges"><span class="badge {{ 'badge-demo' if cycle.mode == 'demo' else 'badge-live' }}">{{ 'Démo · contenu fictif' if cycle.mode == 'demo' else 'Échanges réels' }}</span><span class="status status-{{ cycle.status }}"><span></span>{{ statuses.get(cycle.status, cycle.status) }}</span></div></div><div class="heading-actions"><a class="button button-secondary" href="{{ url_for('web.export_cycle', cycle_id=cycle.id) }}">Exporter en JSON ↓</a><a class="text-link" href="{{ url_for('web.cycle', cycle_id=cycle.id) }}">Actualiser ↻</a></div></div>
+
+{% if cycle.mode == 'demo' %}<div class="notice notice-demo"><strong>Une démonstration pour explorer le fonctionnement.</strong> Tous les échanges et propositions de ce cycle sont fictifs.</div>{% else %}<div class="notice"><strong>Choix d’une mission.</strong> Les plans acceptés rejoignent le Kanban. Si le moteur et la mise en file automatique sont activés, le worker poursuit ensuite le développement et le contrôle ; leur journal se trouve dans Exécutions.</div>{% endif %}
+{% if cycle.status == 'queued' %}<div class="notice">Ce cycle attend le worker. Lancez-le depuis le terminal de la machine configurée, puis actualisez cette page.</div>{% endif %}
+{% if cycle.error %}<div class="notice notice-error" role="alert">{{ cycle.error }}</div>{% endif %}
+
+{% for session in sessions %}
+<section class="session-section" aria-labelledby="session-{{ session.id }}">
+  <div class="section-heading"><div><p class="eyebrow">MISSION {{ '%02d'|format(loop.index) }}</p><h2 id="session-{{ session.id }}">{{ 'Faire avancer CS-PILOT' if session.topic == 'cspilot' else 'Améliorer DUO PILOT' }}</h2></div><span class="status status-{{ session.status }}"><span></span>{{ statuses.get(session.status, session.status) }}</span></div>
+  {% if session.error %}<div class="notice notice-error" role="alert">{{ session.error }}</div>{% endif %}
+  {% if session.roles %}
+  {% set agent_names = {'A': 'OpenAI · Codex', 'B': 'Anthropic · Claude'} %}
+  <div class="notice"><strong>Ouverture : {{ agent_names[session.roles.opener] }}.</strong>
+    Si une tâche est développée, {{ agent_names[session.roles.developer] }} la réalise et {{ agent_names[session.roles.reviewer] }} la contrôle.
+  </div>
+  {% endif %}
+  <div class="session-layout">
+    <div class="conversation">
+      <div class="conversation-heading"><span>LES ÉCHANGES</span><span>{{ session.messages|length }} / 6 messages</span></div>
+      {% for message in session.messages %}
+      {% set is_a = message.actor in ['A', 'a', 'openai', 'codex'] %}
+      <article class="message {{ 'message-a' if is_a else 'message-b' }}">
+        <header class="message-header"><span class="agent-avatar {{ 'avatar-a' if is_a else 'avatar-b' }}">{{ 'A' if is_a else 'B' }}</span><div><strong>{{ 'OpenAI · Codex' if is_a else 'Anthropic · Claude' }}</strong><span>Message {{ message.turn }} / 6</span></div>{% if message.status and message.status not in ['completed', 'ok', 'success'] %}<span class="badge">{{ statuses.get(message.status, message.status) }}</span>{% endif %}</header>
+        <div class="message-content">{{ message.content }}</div>
+        {% if message.input_context %}<details class="context-card"><summary>Contexte envoyé pour ce tour</summary><pre>{{ message.input_context }}</pre></details>{% endif %}
+        {% if message.model or message.input_tokens or message.output_tokens %}<footer class="message-meta">{% if message.model %}<span>{{ message.model }}</span>{% endif %}{% if message.input_tokens or message.output_tokens %}<span>{{ message.input_tokens or 0 }} tokens entrée · {{ message.output_tokens or 0 }} sortie</span>{% endif %}</footer>{% endif %}
+      </article>
+      {% else %}<div class="card empty-conversation"><p>Les agents n'ont pas encore pris la parole.</p><span>Leurs échanges apparaîtront ici après exécution du cycle.</span></div>{% endfor %}
+    </div>
+    <aside class="session-summary">
+      <div class="card decision-card"><p class="eyebrow">LA CONCLUSION</p>
+        {% if session.decision %}
+          {% if session.status == 'rejected' %}<p><strong>Proposition non acceptée.</strong> Aucun plan commun n'est retenu.</p>{% elif session.status not in ['agreed', 'no_action'] %}<p>Proposition en attente de conclusion.</p>{% endif %}
+          <h3>{{ session.decision.title or 'Proposition' }}</h3>
+          {% set actions = {'investigate': 'Investigation', 'fix_bug': 'Correction de bug', 'feature': 'Fonctionnalité', 'improve_process': 'Amélioration du fonctionnement', 'review': 'Relecture', 'split':'Découpage en sous-tâches', 'none': 'Aucune action'} %}
+          {% if session.decision.action %}<p class="decision-action">{{ actions.get(session.decision.action, session.decision.action) }}</p>{% endif %}
+          {% if session.decision.rationale %}<p>{{ session.decision.rationale }}</p>{% endif %}
+          {% if session.decision.scope %}<h4>Périmètre</h4><ul>{% for item in session.decision.scope %}<li>{{ item }}</li>{% endfor %}</ul>{% endif %}
+          {% if session.decision.acceptance_criteria %}<h4>Critères de réussite</h4><ul class="check-list">{% for item in session.decision.acceptance_criteria %}<li>{{ item }}</li>{% endfor %}</ul>{% endif %}
+          {% if session.decision.subtasks %}<h4>Étapes proposées</h4><ol>{% for child in session.decision.subtasks %}<li><strong>{{ child.title }}</strong>{% if child.depends_on %} · après l’étape {{ child.depends_on }}{% endif %}<ul>{% for criterion in child.acceptance_criteria %}<li>{{ criterion }}</li>{% endfor %}</ul></li>{% endfor %}</ol>{% endif %}
+          {% if session.plan_id %}<div class="plan-reference">Plan <code>{{ session.plan_id }}</code></div>{% endif %}
+        {% elif session.status == 'rejected' %}<h3>Pas d'accord commun.</h3><p>Les échanges n'ont pas abouti à un plan accepté par les deux agents. Aucune action n'est retenue.</p>
+        {% elif session.status == 'no_action' %}<h3>Pas d'action nécessaire.</h3><p>Les agents ont choisi de ne pas lancer de nouveau chantier pour cette mission.</p>
+        {% elif session.status == 'failed' %}<h3>Discussion interrompue.</h3><p>Ce sujet n'a pas pu aboutir. Consultez l'erreur et les échanges disponibles.</p>
+        {% else %}<h3>La discussion est ouverte.</h3><p>Le plan et ses critères de réussite apparaîtront ici lorsqu'une décision sera enregistrée.</p>{% endif %}
+        {% if session.kanban %}
+          {% if session.kanban.task_id %}<p><a class="button button-secondary" href="{{ url_for('kanban.detail', task_id=session.kanban.task_id) }}">Voir la carte #{{ session.kanban.task_id }} →</a></p>
+          {% else %}<p class="notice">{{ session.kanban.note }}</p>{% endif %}
+        {% elif session.status == 'agreed' %}
+          <form method="post" action="{{ url_for('kanban.import_decision', session_id=session.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button button-secondary" type="submit">Ajouter ce plan au Kanban</button></form>
+        {% endif %}
+        <div class="decision-footer">Discussion conservée · Le travail est suivi dans la carte et son exécution</div>
+      </div>
+      {% if session.source_reads %}
+      {% set reading_statuses = {'read': 'Extrait lu', 'cached': 'Déjà partagé', 'refused': 'Lecture exclue', 'not_found': 'Chemin non disponible', 'limited': 'Limite atteinte', 'unavailable': 'Lecture indisponible', 'empty': 'Aucune ligne', 'error': 'Erreur de lecture'} %}
+      <details class="card context-card"><summary>Documentation et code · {{ session.source_reads|length }} lectures ou demandes</summary>
+        {% for reading in session.source_reads %}
+        <h4>{{ reading.path }}</h4>
+        <p>{% if reading.after_turn == 0 %}Documentation avant le premier tour{% else %}Après le tour {{ reading.after_turn }} · {{ 'OpenAI' if reading.actor == 'A' else 'Claude' }}{% endif %}<br>{{ reading_statuses.get(reading.status, reading.status) }}{% if reading.reference %} · {{ reading.reference }}{% endif %}</p>
+        {% if reading.snapshot_commit %}<p class="fine-print">Commit <code>{{ reading.snapshot_commit }}</code></p>{% endif %}
+        {% if reading.content %}<pre>{{ reading.content }}</pre><p class="fine-print">Lignes {{ reading.start_line }}–{{ reading.end_line }} sur {{ reading.total_lines }}{% if reading.truncated %} · Extrait partiel{% endif %}</p>{% endif %}
+        {% if reading.note %}<p class="fine-print">{{ reading.note }}</p>{% endif %}
+        {% endfor %}
+      </details>
+      {% endif %}
+      {% if session.context %}<details class="card context-card"><summary>Dernier contexte partagé</summary><pre>{{ session.context }}</pre></details>{% endif %}
+    </aside>
+  </div>
+</section>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Kanban · DUO PILOT{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><p class="eyebrow">LE TRAVAIL À FAIRE</p><h1>Le Kanban</h1><p class="page-intro">Tes demandes, leurs missions, un suivi commun pour les deux applications.</p></div>
+  <a class="button button-primary" href="{{ url_for('kanban.new_task', mode=mode, topic=topic) }}">+ Ajouter une carte</a>
+</div>
+<div class="board-toolbar">
+  <nav class="filter-tabs" aria-label="Projet">
+    {% for key, label in [(none, 'Tous les projets'), ('cspilot', 'CS-PILOT'), ('self', 'DUO PILOT')] %}
+    <a href="{{ url_for('kanban.board', mode=mode, topic=key, archived='1' if archived else none) }}"{% if topic == key %} aria-current="page"{% endif %}>{{ label }}</a>
+    {% endfor %}
+  </nav>
+  <div class="board-tools"><a href="{{ url_for('kanban.board', mode='demo' if mode == 'live' else 'live', topic=topic) }}">{{ 'Voir la démo' if mode == 'live' else 'Voir les vraies tâches' }}</a><a href="{{ url_for('kanban.board', mode=mode, topic=topic, archived=none if archived else '1') }}">{{ 'Cartes actives' if archived else 'Archives' }}</a><a href="{{ url_for('kanban.export_board', mode=mode, topic=topic) }}">Exporter ↓</a></div>
+</div>
+{% if mode == 'demo' %}<div class="notice notice-demo"><strong>Kanban de démonstration.</strong> Ces cartes sont séparées des vraies tâches et ne sont jamais présentées aux agents en mode réel.</div>{% endif %}
+{% if not archived %}<p class="board-help">Les cartes marquées « Prochain tour » seront présentées au début du prochain sujet, selon la file actuelle. Un plan accepté arrive dans « Plan retenu ». Les missions peuvent ensuite être développées et contrôlées par le worker, si le moteur est activé.</p>{% endif %}
+<div class="kanban-scroll" tabindex="0" aria-label="Tableau des missions">
+  <div class="kanban-board{% if archived %} kanban-archives{% endif %}">
+    {% for status, label in columns.items() %}
+    {% set cards = tasks|selectattr('status', 'equalto', status)|list %}
+    <section class="kanban-column column-{{ status }}" aria-labelledby="column-{{ status }}">
+      <header class="column-heading"><h2 id="column-{{ status }}">{{ label }}</h2><span>{{ cards|length }}</span></header>
+      {% for task in cards %}
+      <article class="task-card">
+        <div class="task-tags"><span class="badge project-{{ task.topic }}">{{ task_topics[task.topic] }}</span><span class="priority priority-{{ task.priority }}">{{ task_priorities[task.priority] }}</span></div>
+        <h3><a href="{{ url_for('kanban.detail', task_id=task.id) }}">{{ task.title }}</a></h3>
+        <p class="task-card-meta">#{{ task.id }} · {{ task_kinds[task.kind] }} · {{ 'Toi' if task.origin == 'human' else 'Les agents' }}</p>
+        {% if task.parent_id %}<p class="fine-print">Sous-tâche de #{{ task.parent_id }}{% if task.depends_on %} · Après #{{ task.depends_on }}{% endif %}</p>{% endif %}
+        {% if task.description %}<p class="task-preview">{{ task.description[:150] }}{{ '…' if task.description|length > 150 else '' }}</p>{% endif %}
+        {% if task.developer %}<div class="task-owners"><span class="agent-avatar {{ 'avatar-a' if task.developer == 'A' else 'avatar-b' }}">{{ task.developer }}</span><span>{{ 'Codex' if task.developer == 'A' else 'Claude' }} développe<br>{{ 'Codex' if task.reviewer == 'A' else 'Claude' }} contrôle</span></div>{% endif %}
+        {% if task.id in upcoming %}<span class="next-turn">Prochain tour</span>{% endif %}
+      </article>
+      {% else %}<div class="column-empty">{{ 'Ajoute une demande ou un bug.' if status == 'backlog' else 'Aucune carte ici.' }}</div>{% endfor %}
+    </section>
+    {% endfor %}
+  </div>
+</div>
+{% if not archived %}<p class="fine-print">Lecture limitée à 8 cartes et 4 000 caractères par sujet. Les travaux en cours passent d’abord, puis la priorité, les demandes humaines et l’ancienneté. Les cartes terminées et archivées ne sont plus proposées.</p>{% endif %}
+{% endblock %}

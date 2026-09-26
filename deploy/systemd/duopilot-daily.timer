@@ -1,0 +1,11 @@
+[Unit]
+Description=DUO PILOT - chaque matin a 08:00 heure de Paris
+
+[Timer]
+OnCalendar=*-*-* 08:00:00 Europe/Paris
+Persistent=false
+AccuracySec=1min
+Unit=duopilot-daily.service
+
+[Install]
+WantedBy=timers.target

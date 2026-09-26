@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ $EUID -ne 0 ]]; then
+    echo 'Utilisation : sudo duopilotctl <commande>' >&2
+    exit 1
+fi
+APP=/opt/duopilot/app
+PYTHON=/opt/duopilot/venv/bin/python
+as_duo() {
+    runuser -u duopilot -- env -i \
+        HOME=/home/duopilot USER=duopilot LOGNAME=duopilot \
+        LANG=C.UTF-8 TERM="${TERM:-xterm}" \
+        PATH=/home/duopilot/.local/bin:/opt/duopilot/venv/bin:/usr/local/bin:/usr/bin:/bin \
+        CODEX_HOME=/home/duopilot/.codex CLAUDE_CONFIG_DIR=/home/duopilot/.claude \
+        PYTHONUNBUFFERED=1 "$@"
+}
+cd "$APP"
+ACTION=${1:-help}
+if [[ $# -gt 0 ]]; then shift; fi
+case "$ACTION" in
+    config)
+        # Stop new timer work before checking the queue. Do not terminate active work.
+        TIMER_WAS_ACTIVE=0
+        systemctl is-active --quiet duopilot-daily.timer && TIMER_WAS_ACTIVE=1
+        systemctl stop duopilot-daily.timer
+        systemctl stop duopilot-daily.service
+        restore_timer() {
+            if [[ $TIMER_WAS_ACTIVE == 1 ]]; then systemctl start duopilot-daily.timer; fi
+        }
+        trap restore_timer EXIT
+        as_duo "$PYTHON" deploy/configure.py idle
+        # Stopping the local web listener prevents submissions during reconfiguration.
+        systemctl stop duopilot-web.service
+        restore_services() {
+            systemctl start duopilot-web.service
+            restore_timer
+        }
+        trap restore_services EXIT
+        as_duo "$PYTHON" deploy/configure.py idle
+        systemctl stop duopilot-worker.service
+        restore_services() {
+            systemctl start duopilot-web.service duopilot-worker.service
+            restore_timer
+        }
+        as_duo "$PYTHON" deploy/configure.py config
+        ;;
+    login-codex) as_duo /home/duopilot/.local/bin/codex login --device-auth ;;
+    login-claude) as_duo /home/duopilot/.local/bin/claude auth login ;;
+    doctor) as_duo "$PYTHON" -m flask --app app doctor ;;
+    activer-quotidien)
+        as_duo "$PYTHON" deploy/configure.py ready
+        as_duo /home/duopilot/.local/bin/codex login status
+        as_duo /home/duopilot/.local/bin/claude auth status --text
+        systemctl enable --now duopilot-daily.timer
+        echo 'Tour quotidien activé à 08:00, heure de Paris. Le développement se règle dans Configuration.'
+        ;;
+    pause-quotidien)
+        systemctl disable --now duopilot-daily.timer
+        echo 'Nouveaux tours quotidiens désactivés. Les travaux déjà lancés continuent ; mettre les missions en pause dans l’interface si nécessaire.'
+        ;;
+    preparer-tests)
+        as_duo "$PYTHON" -m flask --app app prepare-tests "$@"
+        ;;
+    lire-depot) as_duo "$PYTHON" -m flask --app app inspect-repo "$@" ;;
+    sauvegarder) systemctl start duopilot-backup.service ;;
+    logs) journalctl -u duopilot-worker.service -u duopilot-web.service -n 80 --no-pager ;;
+    status)
+        systemctl --no-pager --full status duopilot-web.service duopilot-worker.service || true
+        systemctl list-timers 'duopilot-*' --no-pager
+        as_duo /home/duopilot/.local/bin/codex --version
+        as_duo /home/duopilot/.local/bin/claude --version
+        as_duo "$PYTHON" -m flask --app app doctor
+        ;;
+    *)
+        cat <<'HELP'
+sudo duopilotctl config                  Dépôts, branches et jeton GitHub
+sudo duopilotctl login-codex             Connexion ChatGPT sur ce VPS
+sudo duopilotctl login-claude            Connexion Claude sur ce VPS
+sudo duopilotctl doctor                 Vérification locale sans appel IA
+sudo duopilotctl lire-depot --topic self Lecture GitHub sans appel IA
+sudo duopilotctl preparer-tests --topic self
+sudo duopilotctl preparer-tests --topic cspilot --requirements /chemin/requirements.txt
+sudo duopilotctl activer-quotidien       Activer le tour de 08:00 (Europe/Paris)
+sudo duopilotctl pause-quotidien         Suspendre les nouveaux tours programmés
+sudo duopilotctl sauvegarder             Sauvegarder base et configuration
+sudo duopilotctl status                  Services, versions et diagnostic
+sudo duopilotctl logs                    Dernières lignes du journal
+HELP
+        if [[ $ACTION != help ]]; then exit 2; fi
+        ;;
+esac
