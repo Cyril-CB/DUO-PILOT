@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Configuration · DUO PILOT{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">LES CONNEXIONS</p><h1>Préparer le duo.</h1><p class="page-intro">Les abonnements passent par les outils officiels installés sur la machine qui exécute les cycles.</p></div><span class="badge {{ 'badge-live' if live_ready else 'badge-demo' }}">{{ 'Configuration prête' if live_ready else 'Configuration à compléter' }}</span></div>
+
+<div class="config-layout">
+  <section class="card config-card"><p class="eyebrow">VOS DEUX AGENTS</p><h2>Une connexion par outil.</h2><p>L'authentification se fait dans votre terminal, avec Codex et Claude Code. Aucun identifiant d'abonnement n'est saisi dans DUO PILOT.</p>
+    <div class="connection-row"><span class="agent-avatar avatar-a">A</span><div><h3>OpenAI · Codex</h3><p>Connexion ChatGPT dans le CLI officiel.</p><code>codex login</code><p class="connection-model">Modèle : {{ config_public.codex_model or 'Valeur par défaut du CLI' }}</p></div></div>
+    <div class="connection-row"><span class="agent-avatar avatar-b">B</span><div><h3>Anthropic · Claude</h3><p>Connexion à votre abonnement dans Claude Code.</p><code>claude</code><p class="connection-model">Modèle : {{ config_public.claude_model or 'Valeur par défaut du CLI' }}</p></div></div>
+    <div class="notice compact-notice">Les échanges réels utilisent les quotas et les conditions de vos abonnements. La démo fonctionne sans ces connexions.</div>
+  </section>
+  <aside class="card config-card readiness-card"><p class="eyebrow">AVANT DE LANCER</p><h2>{{ 'Tout est configuré.' if live_ready else 'État de préparation' }}</h2>
+    {% if readiness %}<ul class="readiness-list">{% for item in readiness %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}<p>Aucun point de configuration signalé.</p>{% endif %}
+    <p>Vérifiez les outils et leurs connexions depuis le terminal :</p><div class="code-block"><code>flask --app app doctor</code></div><p class="fine-print">Le diagnostic complète l'état affiché ici. Un abonnement connecté doit être disponible pour chaque CLI sur la machine du worker.</p>
+  </aside>
+</div>
+
+<section class="section"><div class="section-heading"><div><p class="eyebrow">LE TERRAIN D'EXPÉRIENCE</p><h2>Les dépôts de travail</h2></div></div><div class="mission-grid"><article class="card config-card"><h3>CS-PILOT</h3><p class="config-value">{{ config_public.cspilot_repo or 'Non configuré' }}</p><p class="fine-print">Application à faire évoluer : besoins, bugs et améliorations.</p></article><article class="card config-card"><h3>DUO PILOT</h3><p class="config-value">{{ config_public.self_repo or 'Non configuré' }}</p><p class="fine-print">Application du duo : mémoire, consignes et fonctionnement.</p></article></div></section>
+
+<div class="notice"><strong>Ce que fait cette première version :</strong> organiser les discussions, conserver les échanges et formuler des propositions. Le développement, la création de pull requests et l'application des améliorations restent des étapes à construire.</div>
+{% endblock %}
